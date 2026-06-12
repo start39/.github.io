@@ -93,6 +93,8 @@
         let mediaRecorder;
         let audioChunks = [];
         let finalAudioBase64 = null;
+        // 全局音频对象，控制单轨播放
+        let currentAudio = null;
 
         // 页面加载时读取录音
         window.addEventListener('load', () => {
@@ -115,7 +117,7 @@
                 mediaRecorder.onstop = async () => {
                     const blob = new Blob(audioChunks, { type: 'audio/mp3' });
                     
-                    // 转为 Base64 存储（真正永久有效）
+                    // 转为 Base64 存储
                     const reader = new FileReader();
                     reader.onloadend = () => {
                         finalAudioBase64 = reader.result;
@@ -142,12 +144,25 @@
             stopBtn.disabled = true;
         };
 
-        // 播放录音（修复版）
+        // 播放逻辑：正在播放则停止并从头重播，杜绝多音轨
         playBtn.onclick = () => {
             if (!finalAudioBase64) return;
-            const audio = new Audio(finalAudioBase64);
-            audio.play();
+
+            // 如果已有音频在播放，先停止
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+
+            // 新建音频并播放
+            currentAudio = new Audio(finalAudioBase64);
+            currentAudio.play();
             tips.textContent = "🔊 正在播放你的旅途感想";
+
+            // 播放结束后清空引用
+            currentAudio.onended = () => {
+                tips.textContent = "✅ 播放完成";
+            };
         };
     </script>
 </body>
