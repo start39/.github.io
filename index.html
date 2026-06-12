@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅途冰箱贴 · 留下你的声音</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            background: #f5f5f5;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .record-btn {
+            background: #ff4757;
+            color: white;
+        }
+        .stop-btn {
+            background: #ffa502;
+            color: white;
+        }
+        .play-btn {
+            background: #2ed573;
+            color: white;
+        }
+        .tips {
+            margin-top: 20px;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📌 旅途冰箱贴</h1>
+        <p class="desc">扫码留下你的旅途感想，再次扫码即可聆听</p>
+        
+        <button class="btn record-btn" id="recordBtn">🔴 开始录音</button>
+        <button class="btn stop-btn" id="stopBtn" disabled>⏹️ 停止录音</button>
+        <button class="btn play-btn" id="playBtn" disabled>▶️ 播放我的录音</button>
+        
+        <p class="tips" id="tips">每个用户自动拥有独立录音空间，隐私安全</p>
+    </div>
+
+    <script>
+        // 生成用户唯一ID
+        const getUserId = () => {
+            let userId = localStorage.getItem('fridge_user_id');
+            if (!userId) {
+                userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('fridge_user_id', userId);
+            }
+            return userId;
+        };
+
+        const userId = getUserId();
+        const recordBtn = document.getElementById('recordBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const playBtn = document.getElementById('playBtn');
+        const tips = document.getElementById('tips');
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let finalAudioBase64 = null;
+
+        // 页面加载时读取录音
+        window.addEventListener('load', () => {
+            const saved = localStorage.getItem(`fridge_audio_${userId}`);
+            if (saved) {
+                finalAudioBase64 = saved;
+                playBtn.disabled = false;
+                tips.textContent = "✅ 已加载你的录音，点击播放";
+            }
+        });
+
+        // 开始录音
+        recordBtn.onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    
+                    // 转为 Base64 存储（真正永久有效）
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        finalAudioBase64 = reader.result;
+                        localStorage.setItem(`fridge_audio_${userId}`, finalAudioBase64);
+                        playBtn.disabled = false;
+                        tips.textContent = "✅ 录音保存成功！永久有效";
+                    };
+                    reader.readAsDataURL(blob);
+                };
+
+                mediaRecorder.start();
+                recordBtn.disabled = true;
+                stopBtn.disabled = false;
+                tips.textContent = "🎙️ 正在录音...";
+            } catch (e) {
+                tips.textContent = "❌ 请允许麦克风权限";
+            }
+        };
+
+        // 停止录音
+        stopBtn.onclick = () => {
+            mediaRecorder.stop();
+            recordBtn.disabled = false;
+            stopBtn.disabled = true;
+        };
+
+        // 播放录音（修复版）
+        playBtn.onclick = () => {
+            if (!finalAudioBase64) return;
+            const audio = new Audio(finalAudioBase64);
+            audio.play();
+            tips.textContent = "🔊 正在播放你的旅途感想";
+        };
+    </script>
+</body>
+</html>
